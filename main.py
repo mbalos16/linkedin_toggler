@@ -20,7 +20,9 @@ def open_driver():
     Returns:
         WebDriver: the driver instanced to be used in other function.
     """
-    driver = webdriver.Firefox()
+    options = webdriver.FirefoxOptions()
+    options.add_argument("--headless")
+    driver = webdriver.Firefox(options=options)
     driver.get("https://www.linkedin.com/feed/")
     return driver
 
