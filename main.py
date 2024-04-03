@@ -1,16 +1,35 @@
 import argparse
 import json
+import logging
+import logging.config
+import sys
 import time
+import traceback
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.keys import Keys
 
 
+# Configure logger
+def log_except_hook(*exc_info):
+    logger = logging.getLogger(__name__)
+    text = "".join(traceback.format_exception(*exc_info))
+    logger.critical(f"Unhandled exception:\n{text}")
+
+
+sys.excepthook = log_except_hook
+
+logging.config.fileConfig(fname="logging.ini")
+logger = logging.getLogger(__name__)
+
+
 def load_secrets():
+    logger.info("Loading secrets json.")
     f = open("secrets.json")
     secrets = json.load(f)
     f.close()
+    logger.info("Secrets loaded successfully.")
     return secrets
 
 
@@ -20,10 +39,12 @@ def open_driver():
     Returns:
         WebDriver: the driver instanced to be used in other function.
     """
+    logger.info("Opening Firefox driver.")
     options = webdriver.FirefoxOptions()
     options.add_argument("--headless")
     driver = webdriver.Firefox(options=options)
     driver.get("https://www.linkedin.com/feed/")
+    logger.info("Firefox driver opened successfully.")
     return driver
 
 
@@ -34,6 +55,7 @@ def close_driver(driver):
         driver (WebDriver): the driver instanced to be used in other function.
     """
     driver.quit()
+    logger.info("Driver closed.")
 
 
 def login_linkedin(driver, username, password):
@@ -44,8 +66,10 @@ def login_linkedin(driver, username, password):
         username (str): The user's email for the LInkedIn profile.
         password (str): The user's password for the LinkedIn profile.
     """
+    logger.info("Loggin to LinkedIn started.")
     # Go to the LInkedIn Login page
     driver.get("https://www.linkedin.com/login")
+    logger.info("Switched to login page.")
 
     # Accept cookies
     accept_btn_xpath = "/html/body/div/main/div[1]/div/section/div/div[2]/button[1]"
@@ -67,6 +91,7 @@ def login_linkedin(driver, username, password):
     )
     sign_in_btn = sign_in_btn_parent.find_element(by=By.XPATH, value="./button")
     sign_in_btn.click()
+    logger.info("Logged in successfully.")
 
 
 def is_work_status_open(driver):
@@ -78,6 +103,7 @@ def is_work_status_open(driver):
     Returns:
         bool: Returns True if the LinkedIn status is OpenToWork and False if is not.
     """
+    logger.info("Checking LinkedIn status.")
     # Access the profile page
     driver.get("https://www.linkedin.com/in/me/")
 
@@ -85,7 +111,9 @@ def is_work_status_open(driver):
     photo_btn_class = "profile-photo-edit__edit-btn"
     photo_parent = driver.find_element(by=By.CLASS_NAME, value=photo_btn_class)
     content = photo_parent.get_attribute("innerHTML")
-    return "#OPEN_TO_WORK" in content
+    open_status = "#OPEN_TO_WORK" in content
+    logger.info(f"The LinkedIn status is {'open' if open_status else 'closed'}.")
+    return open_status
 
 
 def open_status(driver):
@@ -94,11 +122,13 @@ def open_status(driver):
     Args:
         driver (WebDriver): the driver instanced to be used in other function.
     """
-
+    logger.info("Opening LinkedIn status.")
     # Go to the profile page
+    logger.info("Going to the profile page.")
     driver.get("https://www.linkedin.com/in/me/")
 
     # Open the image menu
+    logger.info("Opening the image menu.")
     photo_btn_class = "profile-photo-edit__edit-btn"
     photo_btn = driver.find_element(by=By.CLASS_NAME, value=photo_btn_class)
     photo_btn.click()
@@ -174,6 +204,7 @@ def open_status(driver):
     save_btn_xpath = "//div[contains(@id, 'artdeco-modal-outlet')]//button"
     save_btn = driver.find_elements(by=By.XPATH, value=save_btn_xpath)[-1]
     save_btn.click()
+    logger.info("LinkedIn profile open successfully.")
 
 
 def close_status(driver):
@@ -182,10 +213,14 @@ def close_status(driver):
     Args:
         driver (WebDriver): the driver instanced to be used in other function.
     """
+    logger.info("Closing LInkedIn status.")
+
     # Go to the profile page
+    logger.info("Going to the profile page.")
     driver.get("https://www.linkedin.com/in/me/")
 
     # Open the image menu
+    logger.info("Opening the image menu.")
     photo_btn_class = "profile-photo-edit__edit-btn"
     photo_btn = driver.find_element(by=By.CLASS_NAME, value=photo_btn_class)
     photo_btn.click()
@@ -221,6 +256,7 @@ def close_status(driver):
     )
     submit_btn = driver.find_element(by=By.XPATH, value=submit_btn_xpath)
     submit_btn.click()
+    logger.info("LinkedIn profile closed successfully.")
 
 
 def parse_args():
@@ -272,16 +308,18 @@ if __name__ == "__main__":
 
     if args.open:
         if is_open:
-            print("The LinkedIn account is alredy open. Aborting mission...")
+            logger.info("The LinkedIn account is alredy open. Aborting mission...")
             close_driver(driver)
         else:
+            logger.info("The LinkedIn account is closed. Openning...")
             open_status(driver)
             close_driver(driver)
 
     if args.close:
         if not is_open:
-            print("The LinkedIn account is alredy closed. Aborting mission...")
+            logger.info("The LinkedIn account is alredy closed. Aborting mission...")
             close_driver(driver)
         else:
+            logger.info("The LinkedIn account is open. Closing...")
             close_status(driver)
             close_driver(driver)
