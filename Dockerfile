@@ -4,6 +4,9 @@ FROM python:3.9.2-alpine
 RUN apk add firefox
 RUN apk add bash
 
+# Install CRON
+RUN apk add busybox-initscripts
+
 # Set date and timezone
 RUN apk add -U tzdata
 ENV TZ=Europe/London
@@ -17,10 +20,14 @@ WORKDIR /app
 COPY requirements.txt requirements.txt
 RUN pip install -r requirements.txt
 
+# Configure crontab
+COPY configure_crontabs.sh configure_crontabs.sh
+RUN bash configure_crontabs.sh
+
 # Copy project files
 COPY logging.ini logging.ini
 COPY main.py main.py
 COPY secrets.json secrets.json
 
 # Default executable when running the container
-ENTRYPOINT bash
+ENTRYPOINT crond && bash
