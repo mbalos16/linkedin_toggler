@@ -30,4 +30,4 @@ COPY main.py main.py
 COPY secrets.json secrets.json
 
 # Default executable when running the container
-ENTRYPOINT crond && bash
+ENTRYPOINT crond && bash && tail -f /dev/null
